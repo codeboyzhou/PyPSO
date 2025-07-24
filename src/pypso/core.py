@@ -1,3 +1,4 @@
+from enum import Enum, unique
 from typing import Callable
 
 import numpy as np
@@ -43,6 +44,17 @@ class AlgorithmArguments(BaseModel):
 
     auto_plot_fitness_curve: bool = True
     """是否自动绘制适应度曲线"""
+
+
+@unique
+class ProblemType(Enum):
+    """定义问题类型枚举"""
+
+    MINIMIZATION_PROBLEM = 1
+    """最小化问题"""
+
+    MAXIMIZATION_PROBLEM = 2
+    """最大化问题"""
 
 
 class PyPSO:
@@ -118,8 +130,8 @@ class PyPSO:
         next_particles_position = self.particles_position + self.particles_velocity
         self.particles_position = np.clip(next_particles_position, self.position_bound_min, self.position_bound_max)
 
-    def _update_best_fitness(self) -> None:
-        """向量化更新个体和全局最优适应度"""
+    def _update_best_fitness_for_minimization_problem(self) -> None:
+        """向量化更新个体和全局最优适应度，该方法适用于求解最小化问题"""
 
         # 计算所有粒子的当前适应度
         computed_particles_fitness = self.fitness_function(self.particles_position)
@@ -132,6 +144,23 @@ class PyPSO:
         best_particle_index = np.argmin(self.particles_best_fitness)
         candidate_global_fitness = self.particles_best_fitness[best_particle_index]
         if candidate_global_fitness < self.global_best_fitness:
+            self.global_best_position = self.particles_best_position[best_particle_index]
+            self.global_best_fitness = candidate_global_fitness
+
+    def _update_best_fitness_for_maximization_problem(self) -> None:
+        """向量化更新个体和全局最优适应度，该方法适用于求解最大化问题"""
+
+        # 计算所有粒子的当前适应度
+        computed_particles_fitness = self.fitness_function(self.particles_position)
+        # 找出哪些粒子的当前适应度优于个体最优
+        improved_mask = computed_particles_fitness > self.particles_best_fitness
+        # 更新个体最优位置和适应度
+        self.particles_best_position[improved_mask] = self.particles_position[improved_mask]
+        self.particles_best_fitness[improved_mask] = computed_particles_fitness[improved_mask]
+        # 更新全局最优位置和适应度
+        best_particle_index = np.argmin(self.particles_best_fitness)
+        candidate_global_fitness = self.particles_best_fitness[best_particle_index]
+        if candidate_global_fitness > self.global_best_fitness:
             self.global_best_position = self.particles_best_position[best_particle_index]
             self.global_best_fitness = candidate_global_fitness
 
@@ -149,20 +178,45 @@ class PyPSO:
         inertia_weight_range_value = self.inertia_weight_max - self.inertia_weight_min
         self.inertia_weight = self.inertia_weight_max - inertia_weight_range_value * (iteration / max_iterations)
 
+    def _check_fitness_converged(self, problem_type: ProblemType) -> bool:
+        """检查全局最佳适应度值是否已经收敛"""
+
+        # 最小化问题
+        if problem_type is ProblemType.MINIMIZATION_PROBLEM:
+            return abs(self.global_best_fitness) < 1e-6
+
+        # 最大化问题
+        if problem_type is ProblemType.MAXIMIZATION_PROBLEM:
+            # 判断适应度变化率是否已经足够小
+            length = len(self.iteration_history)
+            if length > 1:
+                global_best_fitness_bias = self.iteration_history[length - 1] - self.iteration_history[length - 2]
+                return abs(global_best_fitness_bias) < 1e-6
+
+        return False
+
     def _hook_on_all_iterations_finished(self) -> None:
         """全部迭代结束以后的hook函数，可以用于做一些后续工作，但又不用和迭代逻辑耦合"""
         if self.auto_plot_fitness_curve:
-            import plot
+            from pypso import plot
             plot.plot_fitness_curve(self.iteration_history)
 
-    def start_iterating(self):
-        """开始执行算法迭代"""
+    def start_iterating(self, problem_type: ProblemType = ProblemType.MINIMIZATION_PROBLEM) -> None:
+        """
+        开始执行算法迭代
+
+        Args:
+            problem_type (ProblemType): 待优化的问题类型，可以是最小化问题，也可以是最大化问题
+
+        Returns:
+            None
+        """
 
         for iteration in range(1, self.max_iterations + 1):
             logger.info(f"第{iteration}次迭代开始")
 
             # 适应度收敛判断
-            if abs(self.global_best_fitness) < 1e-6:
+            if self._check_fitness_converged(problem_type):
                 logger.info(f"适应度已收敛，可以提前结束迭代")
                 break
 
@@ -172,8 +226,12 @@ class PyPSO:
             # 更新个体速度和位置，使用向量化更新，可以比循环语句有更好的性能
             self._update_all_particles_velocity()
             self._update_all_particle_position()
+
             # 更新最佳适应度，同样使用向量化更新
-            self._update_best_fitness()
+            if problem_type is ProblemType.MAXIMIZATION_PROBLEM:
+                self._update_best_fitness_for_maximization_problem()
+            else:
+                self._update_best_fitness_for_minimization_problem()
 
             # 记录每次迭代的全局最佳适应度，方便绘制迭代曲线
             self.iteration_history.append(self.global_best_fitness.item())
