@@ -3,3 +3,6 @@
 
 # Python build files
 *.egg-info
+
+# Jupyter Notebook files
+.ipynb_checkpoints
