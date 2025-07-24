@@ -1,4 +1,11 @@
+import numpy as np
+
 from pypso.core import PyPSO, AlgorithmArguments, ProblemType
+
+
+def x_square_maximization_problem(positions: np.ndarray) -> np.ndarray:
+    return positions ** 2
+
 
 if __name__ == "__main__":
     PyPSO(AlgorithmArguments(
@@ -12,7 +19,7 @@ if __name__ == "__main__":
         inertia_weight_min=0.5,
         cognitive_coefficient=0.5,
         social_coefficient=0.5,
-        fitness_function=lambda x: x ** 2
+        fitness_function=lambda positions: x_square_maximization_problem(positions)
     )).start_iterating(
         problem_type=ProblemType.MAXIMIZATION_PROBLEM,
         auto_plot_fitness_curve=True
