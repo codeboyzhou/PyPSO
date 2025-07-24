@@ -12,6 +12,8 @@ if __name__ == "__main__":
         inertia_weight_min=0.5,
         cognitive_coefficient=0.5,
         social_coefficient=0.5,
-        fitness_function=lambda x: x ** 2,
-        auto_plot_fitness_curve=True,
-    )).start_iterating(problem_type=ProblemType.MINIMIZATION_PROBLEM)
+        fitness_function=lambda x: x ** 2
+    )).start_iterating(
+        problem_type=ProblemType.MINIMIZATION_PROBLEM,
+        auto_plot_fitness_curve=True
+    )

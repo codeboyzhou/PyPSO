@@ -42,9 +42,6 @@ class AlgorithmArguments(BaseModel):
     fitness_function: Callable[[np.ndarray], np.ndarray]
     """适应度函数，输入是个体位置数组（可能是多维），输出是适应度数组（只会是一维）"""
 
-    auto_plot_fitness_curve: bool = True
-    """是否自动绘制适应度曲线"""
-
 
 @unique
 class ProblemType(Enum):
@@ -65,6 +62,7 @@ class PyPSO:
 
         logger.debug(f"初始化PSO算法，使用以下参数：{args.model_dump_json(indent=4, exclude={'fitness_function'})}")
 
+        # 算法核心参数
         self.num_particles = args.num_particles
         self.num_dimensions = args.num_dimensions
         self.max_iterations = args.max_iterations
@@ -76,9 +74,10 @@ class PyPSO:
         self.position_bound_max = args.position_bound_max
         self.velocity_bound_max = args.velocity_bound_max
         self.fitness_function = args.fitness_function
-        self.auto_plot_fitness_curve = args.auto_plot_fitness_curve
 
+        # 对象属性
         self.iteration_history = []  # 迭代历史，用于记录每次迭代的全局最佳适应度，方便绘制迭代曲线
+        self.auto_plot_fitness_curve = True  # 是否自动绘制适应度曲线
 
         shape = (args.num_particles, args.num_dimensions)
         logger.debug(f"定义矩阵大小为：{args.num_particles} x {args.num_dimensions}")
@@ -117,9 +116,9 @@ class PyPSO:
 
         # 速度更新公式
         self.particles_velocity = (
-                self.inertia_weight * self.particles_velocity +
-                self.cognitive_coefficient * cognitive +
-                self.social_coefficient * social
+            self.inertia_weight * self.particles_velocity +
+            self.cognitive_coefficient * cognitive +
+            self.social_coefficient * social
         )
 
         # 限制速度边界
@@ -201,12 +200,17 @@ class PyPSO:
             from pypso import plot
             plot.plot_fitness_curve(self.iteration_history)
 
-    def start_iterating(self, problem_type: ProblemType = ProblemType.MINIMIZATION_PROBLEM) -> None:
+    def start_iterating(
+        self,
+        problem_type: ProblemType = ProblemType.MINIMIZATION_PROBLEM,
+        auto_plot_fitness_curve: bool = True
+    ) -> None:
         """
         开始执行算法迭代
 
         Args:
             problem_type (ProblemType): 待优化的问题类型，可以是最小化问题，也可以是最大化问题
+            auto_plot_fitness_curve (bool): 是否自动绘制适应度曲线
 
         Returns:
             None
@@ -239,4 +243,5 @@ class PyPSO:
             logger.info(f"第{iteration}次迭代结束，全局最佳适应度：{self.global_best_fitness.item():.6f}")
 
         # 全部迭代结束后执行一些hook函数
+        self.auto_plot_fitness_curve = auto_plot_fitness_curve
         self._hook_on_all_iterations_finished()
