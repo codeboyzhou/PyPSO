@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 
+from pypso.core import PyPSO, AlgorithmArguments, ProblemType
+
 
 def gaussian_peak(
     x_grid: np.ndarray,
@@ -72,9 +74,26 @@ def plot_map() -> None:
     plt.show()
 
 
-def three_dimensional_path_planning(x, y, z):
+def three_dimensional_path_planning_problem(positions: np.ndarray) -> np.ndarray:
+    x, y, z = positions[:, 0], positions[:, 1], positions[:, 2]
     return np.sqrt((x - 50) ** 2 + (y - 50) ** 2 + (z - 50) ** 2)
 
 
 if __name__ == "__main__":
     plot_map()
+    PyPSO(AlgorithmArguments(
+        num_particles=100,
+        num_dimensions=3,
+        max_iterations=100,
+        position_bound_min=-10,
+        position_bound_max=10,
+        velocity_bound_max=1,
+        inertia_weight_max=2,
+        inertia_weight_min=0.5,
+        cognitive_coefficient=0.5,
+        social_coefficient=0.5,
+        fitness_function=lambda positions: three_dimensional_path_planning_problem(positions)
+    )).start_iterating(
+        problem_type=ProblemType.MINIMIZATION_PROBLEM,
+        auto_plot_fitness_curve=True
+    )
