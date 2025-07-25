@@ -85,18 +85,8 @@ def plot_map_with_line(start_point: tuple, destination: tuple, path_points: np.n
         all_points_x = [start_point_x] + list(path_points_x) + [destination_x]
         all_points_y = [start_point_y] + list(path_points_y) + [destination_y]
         all_points_z = [start_point_z] + list(path_points_z) + [destination_z]
-
         # 绘制完整路径
         ax.plot(all_points_x, all_points_y, all_points_z, 'b-', linewidth=5, label='Target Path')
-
-        # 标记路径点
-        ax.scatter(path_points_x, path_points_y, path_points_z, c='orange', s=50, marker='o', label='Path Points')
-    else:
-        # 只绘制起点到终点的直线
-        line_x = [start_point_x, destination_x]
-        line_y = [start_point_y, destination_y]
-        line_z = [start_point_z, destination_z]
-        ax.plot(line_x, line_y, line_z, 'g-', linewidth=5, label='Target Path')
 
     # 设置坐标轴信息
     ax.set_title("3D Path Planning")
