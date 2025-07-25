@@ -30,7 +30,15 @@ def gaussian_peak(
     return amplitude * np.exp(-((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2) / (2 * width ** 2))
 
 
-def plot_map() -> None:
+def plot_map_with_line(start_point: tuple, destination: tuple, path_points: np.ndarray = None) -> None:
+    """
+    绘制基础地形和山峰，并根据给定的起点、终点、路径点数组绘制一条路径
+
+    Args:
+        start_point (tuple(float, float, float)): 起点坐标(x, y, z)
+        destination (tuple(float, float, float)): 终点坐标(x, y, z)
+        path_points (np.ndarray): 路径点坐标数组，形状为(n, 3)
+    """
     # 生成网格
     x = np.linspace(0, 100, 100)
     y = np.linspace(0, 100, 100)
@@ -61,15 +69,44 @@ def plot_map() -> None:
     # 开始绘制地形和山峰
     figure = plt.figure(figsize=(10, 8))
     ax = figure.add_subplot(111, projection="3d")
-    surface = ax.plot_surface(x_grid, y_grid, z_grid, cmap="viridis", alpha=0.8)
+    surface = ax.plot_surface(x_grid, y_grid, z_grid, cmap="viridis", alpha=0.6)
     figure.colorbar(surface, shrink=0.5, aspect=5)
+
+    # 标记起点和终点
+    start_point_x, start_point_y, start_point_z = start_point[0], start_point[1], start_point[2]
+    destination_x, destination_y, destination_z = destination[0], destination[1], destination[2]
+    ax.scatter(start_point_x, start_point_y, start_point_z, c='green', s=100, marker='o', label='Start Point')
+    ax.scatter(destination_x, destination_y, destination_z, c='red', s=100, marker='*', label='Destination')
+
+    # 如果提供了路径点，则绘制完整路径
+    if path_points is not None and len(path_points) > 0:
+        # 将起点、路径点、终点连接起来
+        path_points_x, path_points_y, path_points_z = path_points[:, 0], path_points[:, 1], path_points[:, 2]
+        all_points_x = [start_point_x] + list(path_points_x) + [destination_x]
+        all_points_y = [start_point_y] + list(path_points_y) + [destination_y]
+        all_points_z = [start_point_z] + list(path_points_z) + [destination_z]
+
+        # 绘制完整路径
+        ax.plot(all_points_x, all_points_y, all_points_z, 'b-', linewidth=5, label='Target Path')
+
+        # 标记路径点
+        ax.scatter(path_points_x, path_points_y, path_points_z, c='orange', s=50, marker='o', label='Path Points')
+    else:
+        # 只绘制起点到终点的直线
+        line_x = [start_point_x, destination_x]
+        line_y = [start_point_y, destination_y]
+        line_z = [start_point_z, destination_z]
+        ax.plot(line_x, line_y, line_z, 'g-', linewidth=5, label='Target Path')
+
     # 设置坐标轴信息
     ax.set_title("3D Path Planning")
     ax.set_xlabel("X-axis")
     ax.set_ylabel("Y-axis")
     ax.set_zlabel("Height")
+    ax.legend()
     # elev参数控制仰角，azim参数控制方位角
     ax.view_init(elev=30, azim=240)
+
     plt.tight_layout()
     plt.show()
 
@@ -80,7 +117,6 @@ def three_dimensional_path_planning_problem(positions: np.ndarray) -> np.ndarray
 
 
 if __name__ == "__main__":
-    plot_map()
     PyPSO(AlgorithmArguments(
         num_particles=100,
         num_dimensions=3,
@@ -96,4 +132,19 @@ if __name__ == "__main__":
     )).start_iterating(
         problem_type=ProblemType.MINIMIZATION_PROBLEM,
         auto_plot_fitness_curve=True
+    )
+
+    plot_map_with_line(
+        start_point=(0, 0, 0),
+        destination=(80, 80, 2),
+        path_points=np.array([
+            [10, 0, 2],
+            [20, 0, 2],
+            [30, 0, 2],
+            [40, 0, 2],
+            [40, 40, 2],
+            [50, 50, 2],
+            [60, 60, 2],
+            [70, 70, 2],
+        ])
     )
