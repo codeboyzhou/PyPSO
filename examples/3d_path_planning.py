@@ -30,6 +30,39 @@ def gaussian_peak(
     return amplitude * np.exp(-((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2) / (2 * width ** 2))
 
 
+def generate_terrain(x_grid: np.ndarray, y_grid: np.ndarray) -> np.ndarray:
+    """
+    生成地形图在Z网格的坐标
+
+    Args:
+        x_grid (np.ndarray): X平面网格
+        y_grid (np.ndarray): Y平面网格
+    """
+    # 生成基础地形
+    z_grid = np.zeros_like(x_grid)
+
+    # 定义山峰的位置和参数
+    peaks = [
+        # center_x, center_y, amplitude, width
+        (20, 20, 6, 6),
+        (20, 60, 7, 7),
+        (60, 20, 5, 8),
+        (80, 60, 5, 8),
+    ]
+
+    # 添加山峰
+    for (center_x, center_y, amplitude, width) in peaks:
+        z_grid += gaussian_peak(x_grid, y_grid, center_x, center_y, amplitude, width)
+
+    # 添加一些随机噪声和基础波动，增强山峰的真实性
+    z_grid += 0.2 * np.sin(0.5 * np.sqrt(x_grid ** 2 + y_grid ** 2)) + 0.1 * np.random.normal(size=x_grid.shape)
+
+    # 使用高斯滤波，保持山峰独立性的同时也保证平滑性
+    z_grid = scipy.ndimage.gaussian_filter(z_grid, sigma=3)
+
+    return z_grid
+
+
 def plot_map_with_line(start_point: tuple, destination: tuple, path_points: np.ndarray = None) -> None:
     """
     绘制基础地形和山峰，并根据给定的起点、终点、路径点数组绘制一条路径
@@ -43,28 +76,7 @@ def plot_map_with_line(start_point: tuple, destination: tuple, path_points: np.n
     x = np.linspace(0, 100, 100)
     y = np.linspace(0, 100, 100)
     x_grid, y_grid = np.meshgrid(x, y)
-
-    # 定义山峰的位置和参数
-    peaks = [
-        # center_x, center_y, amplitude, width
-        (20, 20, 6, 6),
-        (20, 60, 7, 7),
-        (60, 20, 5, 8),
-        (80, 60, 5, 8),
-    ]
-
-    # 生成基础地形
-    z_grid = np.zeros_like(x_grid)
-
-    # 添加山峰
-    for (center_x, center_y, amplitude, width) in peaks:
-        z_grid += gaussian_peak(x_grid, y_grid, center_x, center_y, amplitude, width)
-
-    # 添加一些随机噪声和基础波动，增强山峰的真实性
-    z_grid += 0.2 * np.sin(0.5 * np.sqrt(x_grid ** 2 + y_grid ** 2)) + 0.1 * np.random.normal(size=x_grid.shape)
-
-    # 使用高斯滤波，保持山峰独立性的同时也保证平滑性
-    z_grid = scipy.ndimage.gaussian_filter(z_grid, sigma=3)
+    z_grid = generate_terrain(x_grid, y_grid)
 
     # 开始绘制地形和山峰
     figure = plt.figure(figsize=(10, 8))
@@ -78,7 +90,7 @@ def plot_map_with_line(start_point: tuple, destination: tuple, path_points: np.n
     ax.scatter(start_point_x, start_point_y, start_point_z, c='green', s=100, marker='o', label='Start Point')
     ax.scatter(destination_x, destination_y, destination_z, c='red', s=100, marker='*', label='Destination')
 
-    # 如果提供了路径点，则绘制完整路径
+    # 绘制路径
     if path_points is not None and len(path_points) > 0:
         # 将起点、路径点、终点连接起来
         path_points_x, path_points_y, path_points_z = path_points[:, 0], path_points[:, 1], path_points[:, 2]
