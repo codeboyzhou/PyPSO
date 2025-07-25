@@ -2,7 +2,8 @@
 .idea/
 
 # Python build files
-*.egg-info
+*.egg-info/
+__pycache__/
 
 # Jupyter Notebook files
-.ipynb_checkpoints
+.ipynb_checkpoints/
