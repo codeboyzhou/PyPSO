@@ -25,7 +25,9 @@ def plot_fitness_curve(fitness_values: list[float]) -> None:
     plt.title("Fitness Function Curve (log)")
     plt.xlabel("Number of Iterations")
     plt.ylabel("log(Fitness Value)")
-    plt.plot(np.log(fitness_values), "r-", linewidth=2)
+    # 处理可能为0或负数的适应度值，避免做对数计算出现除0错误
+    valid_fitness_values = np.maximum(fitness_values, 1e-10)
+    plt.plot(np.log(valid_fitness_values), "r-", linewidth=2)
     plt.grid(True)
 
     plt.tight_layout()
