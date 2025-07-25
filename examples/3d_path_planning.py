@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from loguru import logger
 
 from pypso.core import PyPSO, AlgorithmArguments, ProblemType
 
@@ -63,14 +64,51 @@ def generate_terrain(x_grid: np.ndarray, y_grid: np.ndarray) -> np.ndarray:
     return z_grid
 
 
-def plot_map_with_line(start_point: tuple, destination: tuple, path_points: np.ndarray = None) -> None:
+def is_terrain_collision_detected(
+    point: tuple[float, float, float],
+    x_grid: np.ndarray,
+    y_grid: np.ndarray,
+    z_grid: np.ndarray
+) -> bool:
+    """
+    检测空间中某个点是否会和山体发生碰撞
+
+    Args:
+        point (tuple): 点坐标 (x, y, z)
+        x_grid (np.ndarray): X平面网格
+        y_grid (np.ndarray): Y平面网格
+        z_grid (np.ndarray): Z平面网格
+
+    Returns:
+        bool: 如果点在山体内部则返回True，否则返回False
+    """
+    x, y, z = point
+
+    # 找到点(x, y)在网格中的最近邻接点索引
+    all_points_x_unique = x_grid[0, :]
+    all_points_y_unique = y_grid[:, 0]
+    x_neighbors_index = np.argmin(np.abs(all_points_x_unique - x))
+    y_neighbors_index = np.argmin(np.abs(all_points_y_unique - y))
+
+    # 获取这些邻接点的地形高度
+    terrain_height: float = z_grid[y_neighbors_index, x_neighbors_index].item()
+
+    # 如果点的Z坐标小于地形高度，则发生碰撞
+    return z < terrain_height
+
+
+def plot_map_with_line(
+    start_point: tuple[float, float, float],
+    destination: tuple[float, float, float],
+    path_points: np.ndarray = None
+) -> None:
     """
     绘制基础地形和山峰，并根据给定的起点、终点、路径点数组绘制一条路径
 
     Args:
-        start_point (tuple(float, float, float)): 起点坐标(x, y, z)
-        destination (tuple(float, float, float)): 终点坐标(x, y, z)
-        path_points (np.ndarray): 路径点坐标数组，形状为(n, 3)
+        start_point (tuple): 起点坐标 (x, y, z)
+        destination (tuple): 终点坐标 (x, y, z)
+        path_points (np.ndarray): 路径点坐标数组，形状为 (n, 3)
     """
     # 生成网格
     x = np.linspace(0, 100, 100)
@@ -100,6 +138,13 @@ def plot_map_with_line(start_point: tuple, destination: tuple, path_points: np.n
         # 绘制完整路径
         ax.plot(all_points_x, all_points_y, all_points_z, 'b-', linewidth=5, label='Target Path')
 
+        # 检查路径点是否与山体碰撞并标记
+        for i in range(len(path_points)):
+            point = (path_points_x[i].item(), path_points_y[i].item(), path_points_z[i].item())
+            if is_terrain_collision_detected(point, x_grid, y_grid, z_grid):
+                logger.warning(f"检测到路径采样点 {point} 存在山体碰撞风险")
+                ax.scatter(point[0], point[1], point[2], c='red', s=100, marker='x')
+
     # 设置坐标轴信息
     ax.set_title("3D Path Planning")
     ax.set_xlabel("X-axis")
@@ -107,7 +152,7 @@ def plot_map_with_line(start_point: tuple, destination: tuple, path_points: np.n
     ax.set_zlabel("Height")
     ax.legend()
     # elev参数控制仰角，azim参数控制方位角
-    ax.view_init(elev=30, azim=240)
+    ax.view_init(elev=90, azim=240)
 
     plt.tight_layout()
     plt.show()
@@ -142,6 +187,7 @@ if __name__ == "__main__":
         path_points=np.array([
             [10, 0, 2],
             [20, 0, 2],
+            [20, 20, 2],
             [30, 0, 2],
             [40, 0, 2],
             [40, 40, 2],
