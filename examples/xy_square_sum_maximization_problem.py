@@ -1,14 +1,19 @@
 import numpy as np
 
+from pypso import plot
 from pypso.core import PyPSO, AlgorithmArguments, ProblemType
 
 
 def xy_square_sum_maximization_problem(positions: np.ndarray) -> np.ndarray:
+    """
+    这个函数定义了一个简单的优化问题：最大化 f(x, y) = x^2 + y^2
+    该函数接受一个位置数组，并返回每个位置的平方和作为适应度值
+    """
     return np.sum(positions ** 2, axis=1)
 
 
 if __name__ == "__main__":
-    PyPSO(AlgorithmArguments(
+    pso_optimizer = PyPSO(AlgorithmArguments(
         num_particles=100,
         num_dimensions=2,
         max_iterations=100,
@@ -20,7 +25,6 @@ if __name__ == "__main__":
         cognitive_coefficient=0.5,
         social_coefficient=0.5,
         fitness_function=lambda positions: xy_square_sum_maximization_problem(positions)
-    )).start_iterating(
-        problem_type=ProblemType.MAXIMIZATION_PROBLEM,
-        auto_plot_fitness_curve=True
-    )
+    ))
+    best_solutions, best_fitness_values = pso_optimizer.start_iterating(ProblemType.MAXIMIZATION)
+    plot.plot_fitness_curve(best_fitness_values)
