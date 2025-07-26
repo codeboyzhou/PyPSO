@@ -136,7 +136,7 @@ class PyPSO:
         # 计算所有粒子的当前适应度
         computed_particles_fitness = self.fitness_function(self.particles_position)
 
-        # 根据问题类型选择比较操作符和最优个体索引函数
+        # 根据问题类型选择比较操作符和最优个体下标索引函数
         if problem_type is ProblemType.MINIMIZATION:
             compare = lambda x, y: x < y
             compute_best_particle_index = np.argmin

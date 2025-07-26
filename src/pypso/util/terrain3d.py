@@ -17,7 +17,7 @@ def generate_simulated_mountain_peaks(
             每个元组包含 (center_x, center_y, amplitude, width)
             center_x: 山峰中心的X坐标
             center_y: 山峰中心的Y坐标
-            amplitude: 山峰的高度
+            amplitude: 山峰的高度系数
             width: 山峰的宽度
 
     Returns:
@@ -37,3 +37,32 @@ def generate_simulated_mountain_peaks(
     z_grid = gaussian_filter(z_grid, sigma=3)
 
     return z_grid
+
+
+def is_colliding_with_heightfield(
+    point: np.ndarray,
+    x_grid: np.ndarray,
+    y_grid: np.ndarray,
+    z_grid: np.ndarray
+) -> bool:
+    """
+    检测空间中的某个点 (x, y, z) 是否与高度场发生了碰撞
+
+    Returns:
+        bool: 如果发生碰撞则返回True，否则返回False
+    """
+    point_x, point_y, point_z = point[0], point[1], point[2]
+
+    # 边界值处理，高度为0，无需考虑碰撞
+    if point_z == 0:
+        return False
+
+    # 根据点的坐标值获取点在网格中的下标
+    x_index = int((point_x - np.min(x_grid)) // x_grid.shape[0])
+    y_index = int((point_y - np.min(y_grid)) // y_grid.shape[1])
+
+    # 如果点的高度无限接近地形高度，则认为发生碰撞
+    terrain_z = z_grid[x_index, y_index]
+    result = (point_z - terrain_z) < 1e-6
+
+    return result.item()
