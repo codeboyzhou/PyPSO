@@ -6,6 +6,8 @@ import numpy as np
 from loguru import logger
 from pydantic import BaseModel
 
+from pypso import checker
+
 
 class AlgorithmArguments(BaseModel):
     """定义粒子群优化算法（Particle Swarm Optimization）核心参数"""
@@ -48,10 +50,10 @@ class AlgorithmArguments(BaseModel):
 class ProblemType(Enum):
     """定义问题类型枚举"""
 
-    MINIMIZATION_PROBLEM = 1
+    MINIMIZATION = 1
     """最小化问题"""
 
-    MAXIMIZATION_PROBLEM = 2
+    MAXIMIZATION = 2
     """最大化问题"""
 
 
@@ -75,10 +77,6 @@ class PyPSO:
         self.position_bound_max = args.position_bound_max
         self.velocity_bound_max = args.velocity_bound_max
         self.fitness_function = args.fitness_function
-
-        # 对象属性
-        self.iteration_history = []  # 迭代历史，用于记录每次迭代的全局最优适应度，方便绘制迭代曲线
-        self.auto_plot_fitness_curve = True  # 是否自动绘制适应度曲线
 
         shape = (args.num_particles, args.num_dimensions)
         logger.debug(f"定义矩阵大小为：{args.num_particles} x {args.num_dimensions}")
@@ -139,7 +137,7 @@ class PyPSO:
         computed_particles_fitness = self.fitness_function(self.particles_position)
 
         # 根据问题类型选择比较操作符和最优个体索引函数
-        if problem_type is ProblemType.MINIMIZATION_PROBLEM:
+        if problem_type is ProblemType.MINIMIZATION:
             compare = lambda x, y: x < y
             compute_best_particle_index = np.argmin
         else:
@@ -175,51 +173,25 @@ class PyPSO:
         inertia_weight_range_value = self.inertia_weight_max - self.inertia_weight_min
         self.inertia_weight = self.inertia_weight_max - inertia_weight_range_value * (iteration / max_iterations)
 
-    def _check_fitness_converged(self, problem_type: ProblemType) -> bool:
-        """检查全局最优适应度值是否已经收敛"""
-
-        # 最小化问题，适应度值达到某个极小值，则认为已经收敛
-        if problem_type is ProblemType.MINIMIZATION_PROBLEM:
-            return abs(self.global_best_fitness) < 1e-6
-
-        # 最大化问题，适应度值连续多次变化率达到某个极小值，则认为已经收敛
-        if problem_type is ProblemType.MAXIMIZATION_PROBLEM:
-            consecutive = 10
-            if len(self.iteration_history) < consecutive + 1:
-                return False
-            diffs = [abs(self.iteration_history[i] - self.iteration_history[i - 1]) for i in range(-consecutive, 0)]
-            return all(diff < 1e-6 for diff in diffs)
-
-        return False
-
-    def _hook_on_all_iterations_finished(self) -> None:
-        """全部迭代结束以后的hook函数，可以用于做一些后续工作，但又不用和迭代逻辑耦合"""
-        if self.auto_plot_fitness_curve:
-            from pypso import plot
-            plot.plot_fitness_curve(self.iteration_history)
-
-    def start_iterating(
-        self,
-        problem_type: ProblemType = ProblemType.MINIMIZATION_PROBLEM,
-        auto_plot_fitness_curve: bool = True
-    ) -> None:
+    def start_iterating(self, problem_type: ProblemType) -> tuple[np.ndarray, list[float]]:
         """
         开始执行算法迭代
 
         Args:
             problem_type (ProblemType): 待优化的问题类型，可以是最小化问题，也可以是最大化问题
-            auto_plot_fitness_curve (bool): 是否自动绘制适应度曲线
 
         Returns:
             None
         """
+        best_solutions = []  # 每次迭代后的最优解，全部记录下来用于绘制最优路径
+        best_fitness_values = []  # 每次迭代后的最优适应度，全部记录下来用于绘制迭代曲线
 
         for iteration in range(1, self.max_iterations + 1):
-            logger.info(f"第{iteration}次迭代开始")
+            logger.debug(f"第{iteration}次迭代开始")
 
-            # 适应度收敛判断
-            if self._check_fitness_converged(problem_type):
-                logger.info(f"适应度已收敛，可以提前结束迭代，当前全局最优适应度：{self.global_best_fitness.item():.6f}")
+            # 检查适应度值是否提前收敛
+            if checker.is_converged(best_fitness_values):
+                logger.debug(f"适应度已收敛，可以提前结束迭代，当前全局最优适应度：{self.global_best_fitness.item():.6f}")
                 break
 
             # 动态更新惯性权重
@@ -232,11 +204,11 @@ class PyPSO:
             # 更新最优适应度，同样使用向量化更新
             self._update_best_fitness(problem_type)
 
+            # 记录每次迭代的全局最优位置，方便绘制最优路径
+            best_solutions.append(self.global_best_position)
             # 记录每次迭代的全局最优适应度，方便绘制迭代曲线
-            self.iteration_history.append(self.global_best_fitness.item())
+            best_fitness_values.append(self.global_best_fitness.item())
 
-            logger.info(f"第{iteration}次迭代结束，全局最优适应度：{self.global_best_fitness.item():.6f}")
+            logger.debug(f"第{iteration}次迭代结束，全局最优适应度：{self.global_best_fitness.item():.6f}")
 
-        # 全部迭代结束后执行一些hook函数
-        self.auto_plot_fitness_curve = auto_plot_fitness_curve
-        self._hook_on_all_iterations_finished()
+        return np.array(best_solutions), best_fitness_values
