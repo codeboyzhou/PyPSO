@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.ndimage import gaussian_filter
 from scipy.spatial.distance import cdist
 
 from pypso import plot
 from pypso.core import ProblemType, PyPSO, AlgorithmArguments
+from pypso.util import terrain3d
 
-# 定义山峰的位置和参数
+# 定义模拟山峰的参数
 peaks = [
     # center_x, center_y, amplitude, width
     (20, 20, 6, 6),
@@ -14,30 +14,6 @@ peaks = [
     (60, 20, 5, 8),
     (80, 60, 5, 8),
 ]
-
-
-def generate_terrain(x_grid: np.ndarray, y_grid: np.ndarray) -> np.ndarray:
-    """
-    生成地形图在Z网格的坐标
-
-    Args:
-        x_grid (np.ndarray): X平面网格
-        y_grid (np.ndarray): Y平面网格
-    """
-    # 生成基础地形
-    z_grid = np.zeros_like(x_grid)
-
-    # 添加山峰
-    for (center_x, center_y, amplitude, width) in peaks:
-        z_grid += amplitude * np.exp(-((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2) / (2 * width ** 2))
-
-    # 添加一些随机噪声和基础波动，增强山峰的真实性
-    z_grid += 0.2 * np.sin(0.5 * np.sqrt(x_grid ** 2 + y_grid ** 2)) + 0.1 * np.random.normal(size=x_grid.shape)
-
-    # 使用高斯滤波，保持山峰独立性的同时也保证平滑性
-    z_grid = gaussian_filter(z_grid, sigma=3)
-
-    return z_grid
 
 
 class PathPlanning3D:
@@ -51,7 +27,7 @@ class PathPlanning3D:
         x = np.linspace(0, 100, 100)
         y = np.linspace(0, 100, 100)
         self.x_grid, self.y_grid = np.meshgrid(x, y)
-        self.z_grid = generate_terrain(self.x_grid, self.y_grid)
+        self.z_grid = terrain3d.generate_simulated_mountain_peaks(self.x_grid, self.y_grid, peaks)
 
     def plot_map_with_best_path(self, best_path_points: np.ndarray) -> None:
         """
@@ -111,7 +87,7 @@ if __name__ == "__main__":
     pso_optimizer = PyPSO(AlgorithmArguments(
         num_particles=100,
         num_dimensions=3,
-        max_iterations=10000,
+        max_iterations=100,
         position_bound_min=0,
         position_bound_max=100,
         velocity_bound_max=1,
@@ -122,7 +98,10 @@ if __name__ == "__main__":
         fitness_function=lambda positions: path_planning_3d.compute_path_cost(positions)
     ))
     # 执行算法迭代
-    best_solutions, best_fitness_values = pso_optimizer.start_iterating(ProblemType.MINIMIZATION)
+    best_solutions, best_fitness_values = pso_optimizer.start_iterating(
+        problem_type=ProblemType.MINIMIZATION,
+        dynamic_check_convergence=False
+    )
     # 绘制适应度曲线
     plot.plot_fitness_curve(best_fitness_values)
     # 绘制最优路径
