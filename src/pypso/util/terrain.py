@@ -1,4 +1,5 @@
 import numpy as np
+from loguru import logger
 from scipy.ndimage import gaussian_filter
 
 
@@ -29,6 +30,7 @@ def generate_simulated_mountain_peaks(
     # 添加山峰
     for (center_x, center_y, amplitude, width) in peaks:
         z_grid += amplitude * np.exp(-((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2) / (2 * width ** 2))
+        logger.debug(f"山峰 ({center_x}, {center_y}, {amplitude}, {width}) 已添加到地形图中，高度：{np.max(z_grid)}")
 
     # 添加一些随机噪声和基础波动，增强山峰的真实性
     z_grid += 0.2 * np.sin(0.5 * np.sqrt(x_grid ** 2 + y_grid ** 2)) + 0.1 * np.random.normal(size=x_grid.shape)
@@ -39,7 +41,7 @@ def generate_simulated_mountain_peaks(
     return z_grid
 
 
-def is_colliding_with_heightfield(
+def is_collision_detected(
     point: np.ndarray,
     x_grid: np.ndarray,
     y_grid: np.ndarray,

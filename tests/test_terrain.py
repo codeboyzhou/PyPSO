@@ -1,6 +1,6 @@
 import numpy as np
 
-from pypso.util import terrain3d
+from pypso.util import terrain
 
 
 def test_is_colliding_with_heightfield():
@@ -13,16 +13,16 @@ def test_is_colliding_with_heightfield():
 
     # 测试点在高度场上方
     point_above = np.array([0, 0, 55])
-    assert not terrain3d.is_colliding_with_heightfield(point_above, x_grid, y_grid, z_grid)
+    assert not terrain.is_collision_detected(point_above, x_grid, y_grid, z_grid)
 
     # 测试点在高度场下方
     point_below = np.array([0, 0, 45])
-    assert terrain3d.is_colliding_with_heightfield(point_below, x_grid, y_grid, z_grid)
+    assert terrain.is_collision_detected(point_below, x_grid, y_grid, z_grid)
 
     # 测试点就在高度场上
     point_on = np.array([0, 0, 50])
-    assert terrain3d.is_colliding_with_heightfield(point_on, x_grid, y_grid, z_grid)
+    assert terrain.is_collision_detected(point_on, x_grid, y_grid, z_grid)
 
     # 测试点在高度场边界
     point_edge = np.array([-5, -5, 0])
-    assert not terrain3d.is_colliding_with_heightfield(point_edge, x_grid, y_grid, z_grid)
+    assert not terrain.is_collision_detected(point_edge, x_grid, y_grid, z_grid)

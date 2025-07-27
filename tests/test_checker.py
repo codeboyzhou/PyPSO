@@ -1,4 +1,4 @@
-from pypso import checker
+from pypso.util import checker
 
 
 def test_is_converged():
