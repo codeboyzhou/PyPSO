@@ -38,4 +38,8 @@ def test_xy_square_sum_maximization_problem():
     best_fitness_values = pso_optimizer.start_iterating(ProblemType.MAXIMIZATION)
 
     # 绘制适应度曲线
-    plot.plot_fitness_curve(fitness_values=best_fitness_values, block=False)
+    plot.plot_fitness_curve(
+        fitness_values=best_fitness_values,
+        sup_title=r"f(x) = $x^{2} + y^{2}$",
+        block=False
+    )
