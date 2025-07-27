@@ -1,4 +1,5 @@
 import random
+import sys
 from enum import Enum, unique
 from typing import Callable
 
@@ -65,6 +66,12 @@ class ProblemType(Enum):
 class PyPSO:
     """粒子群优化算法（Particle Swarm Optimization）核心实现"""
 
+    @classmethod
+    def set_logger_level(cls, level: str):
+        """设置日志输出级别"""
+        logger.remove()
+        logger.add(sys.stderr, level=level)
+
     def __init__(self, args: AlgorithmArguments, objective_function: Callable[[np.ndarray], np.ndarray]) -> None:
         """
         算法初始化
@@ -79,7 +86,7 @@ class PyPSO:
             None
         """
 
-        logger.debug(f"初始化PSO算法，使用以下参数：{args.model_dump_json(indent=4)}")
+        logger.success(f"初始化PSO算法，使用以下参数：{args.model_dump_json(indent=4)}")
 
         # 算法核心参数
         self.num_particles = args.num_particles
@@ -206,6 +213,8 @@ class PyPSO:
         Returns:
             None
         """
+        logger.success("开始执行PSO算法迭代")
+
         best_fitness_values = []  # 每次迭代后的最优适应度，全部记录下来用于绘制迭代曲线
 
         for iteration in range(1, self.max_iterations + 1):

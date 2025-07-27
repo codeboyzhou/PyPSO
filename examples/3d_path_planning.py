@@ -1,3 +1,5 @@
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
@@ -96,14 +98,14 @@ class PathPlanning3D:
 
             # 碰撞惩罚
             if terrain.is_collision_detected(neighbor, self.x_grid, self.y_grid, self.z_grid):
-                logger.warning(f"邻接点 {neighbor} 会与地形发生碰撞，跳过并驱逐该点")
+                logger.debug(f"邻接点 {neighbor} 会与地形发生碰撞，跳过并驱逐该点")
                 self.best_path_costs += 5
                 is_expected_neighbor = False
 
             # 高度惩罚
             allowed_max_height = np.max(self.z_grid)
             if neighbor[2] > allowed_max_height:
-                logger.warning(f"邻接点 {neighbor} 高度超过限定阈值 {allowed_max_height}，跳过并驱逐该点")
+                logger.debug(f"邻接点 {neighbor} 高度超过限定阈值 {allowed_max_height}，跳过并驱逐该点")
                 self.best_path_costs += 1
                 is_expected_neighbor = False
 
@@ -126,6 +128,9 @@ class PathPlanning3D:
 
 
 if __name__ == "__main__":
+    # 控制日志级别
+    PyPSO.set_logger_level("INFO")
+
     # 初始化PSO算法参数
     pso_arguments = AlgorithmArguments(
         num_particles=100,
@@ -156,7 +161,7 @@ if __name__ == "__main__":
     )
 
     # 绘制适应度曲线
-    plot.plot_fitness_curve(best_fitness_values)
+    plot.plot_fitness_curve(fitness_values=best_fitness_values, sup_title="3D Path Planning")
 
     # 绘制最优路径
     path_planning_3d.plot_map_with_best_path()

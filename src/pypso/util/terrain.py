@@ -24,13 +24,15 @@ def generate_simulated_mountain_peaks(
     Returns:
         np.ndarray: 生成的地形图在Z网格的坐标
     """
+    logger.success("开始生成模拟山峰地形")
+
     # 生成基础地形
     z_grid = np.zeros_like(x_grid)
 
     # 添加山峰
     for (center_x, center_y, amplitude, width) in peaks:
         z_grid += amplitude * np.exp(-((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2) / (2 * width ** 2))
-        logger.debug(f"山峰 ({center_x}, {center_y}, {amplitude}, {width}) 已添加到地形图中，高度：{np.max(z_grid)}")
+        logger.success(f"山峰 ({center_x}, {center_y}, {amplitude}, {width}) 已添加到地形图中，高度：{np.max(z_grid)}")
 
     # 添加一些随机噪声和基础波动，增强山峰的真实性
     z_grid += 0.2 * np.sin(0.5 * np.sqrt(x_grid ** 2 + y_grid ** 2)) + 0.1 * np.random.normal(size=x_grid.shape)
