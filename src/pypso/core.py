@@ -6,26 +6,26 @@ import numpy as np
 from loguru import logger
 from pydantic import BaseModel
 
-from pypso import checker
+from pypso.util import checker
 
 
 class AlgorithmArguments(BaseModel):
     """定义粒子群优化算法（Particle Swarm Optimization）核心参数"""
 
     num_particles: int
-    """粒子数量"""
+    """粒子群规模，即粒子个数"""
 
     num_dimensions: int
-    """粒子搜索的空间维度，也就是待优化问题的自变量个数"""
+    """待优化问题的维度，即问题涉及到的自变量个数"""
 
     max_iterations: int
     """最大迭代次数"""
 
     inertia_weight_max: float
-    """最大惯性权重，在迭代过程中会使用线性递减来动态调整，但不会大于该值"""
+    """最大惯性权重，用于实现惯性权重的线性递减，初始值较大可以增加算法的探索能力"""
 
     inertia_weight_min: float
-    """最小惯性权重，在迭代过程中会使用线性递增来动态调整，但不会小于该值"""
+    """最小惯性权重，用于实现惯性权重的线性递减，最终值较小可以增加算法的开发能力"""
 
     cognitive_coefficient: float
     """认知系数C1"""
@@ -33,17 +33,22 @@ class AlgorithmArguments(BaseModel):
     social_coefficient: float
     """社会系数C2"""
 
-    position_bound_min: float
-    """粒子位置下界，限制其搜索空间范围，也就是限制自变量的取值范围，对于无约束的问题，可以设置一个很小的值"""
+    position_bounds_min: tuple[float, ...]
+    """
+    粒子位置下界，即允许自变量可取的最小值
+    tuple类型，有几个自变量，就有几个元素
+    对于无约束的问题，可以设置一个很小的值
+    """
 
-    position_bound_max: float
-    """粒子位置上界，限制其搜索空间范围，也就是限制自变量的取值范围，对于无约束的问题，可以设置一个很大的值"""
+    position_bounds_max: tuple[float, ...]
+    """
+    粒子位置上界，即允许自变量可取的最大值
+    tuple类型，有几个自变量，就有几个元素
+    对于无约束的问题，可以设置一个很大的值
+    """
 
     velocity_bound_max: float
     """速度上界，因为速度是矢量，所以上界取反方向就可以得到速度下界，目的是为了平衡算法的探索能力和开发能力"""
-
-    fitness_function: Callable[[np.ndarray], np.ndarray]
-    """适应度函数，输入是个体位置数组（可能是多维），输出是适应度数组（只会是一维）"""
 
 
 @unique
@@ -60,10 +65,21 @@ class ProblemType(Enum):
 class PyPSO:
     """粒子群优化算法（Particle Swarm Optimization）核心实现"""
 
-    def __init__(self, args: AlgorithmArguments):
-        """算法初始化"""
+    def __init__(self, args: AlgorithmArguments, objective_function: Callable[[np.ndarray], np.ndarray]) -> None:
+        """
+        算法初始化
 
-        logger.debug(f"初始化PSO算法，使用以下参数：{args.model_dump_json(indent=4, exclude={'fitness_function'})}")
+        Args:
+            args (AlgorithmArguments): 算法核心参数
+            objective_function (Callable[[np.ndarray], np.ndarray]): 待优化问题的目标函数
+                接受一个形状为 (num_particles, num_dimensions) 的 numpy 数组
+                返回一个形状为 (num_particles, 1) 的 numpy 数组，表示适应度值
+
+        Returns:
+            None
+        """
+
+        logger.debug(f"初始化PSO算法，使用以下参数：{args.model_dump_json(indent=4)}")
 
         # 算法核心参数
         self.num_particles = args.num_particles
@@ -73,15 +89,17 @@ class PyPSO:
         self.inertia_weight_min = args.inertia_weight_min
         self.cognitive_coefficient = args.cognitive_coefficient
         self.social_coefficient = args.social_coefficient
-        self.position_bound_min = args.position_bound_min
-        self.position_bound_max = args.position_bound_max
+        self.position_bounds_min = args.position_bounds_min
+        self.position_bounds_max = args.position_bounds_max
         self.velocity_bound_max = args.velocity_bound_max
-        self.fitness_function = args.fitness_function
+
+        # 待优化问题的目标函数
+        self.objective_function = objective_function
 
         shape = (args.num_particles, args.num_dimensions)
         logger.debug(f"定义矩阵大小为：{args.num_particles} x {args.num_dimensions}")
 
-        self.particles_position = np.random.uniform(args.position_bound_min, args.position_bound_max, shape)
+        self.particles_position = np.random.uniform(args.position_bounds_min, args.position_bounds_max, shape)
         logger.debug(f"随机初始化粒子位置：{self.particles_position}")
 
         self.particles_velocity = np.random.uniform(-args.velocity_bound_max, args.velocity_bound_max, shape)
@@ -90,8 +108,8 @@ class PyPSO:
         self.particles_best_position = self.particles_position.copy()
         logger.debug(f"初始化个体最优位置（当前位置）：{self.particles_best_position}")
 
-        self.particles_best_fitness = args.fitness_function(self.particles_position)
-        logger.debug(f"初始化个体最优适应度（需要结合适应度函数做计算）：{self.particles_best_fitness}")
+        self.particles_best_fitness = objective_function(self.particles_position)
+        logger.debug(f"初始化个体最优适应度（需要结合目标函数做计算）：{self.particles_best_fitness}")
 
         bast_particle_index = random.randint(0, self.num_particles - 1)
         self.global_best_position = self.particles_best_position[bast_particle_index]
@@ -123,7 +141,7 @@ class PyPSO:
     def _update_all_particle_position(self) -> None:
         """向量化更新所有个体的位置"""
         next_particles_position = self.particles_position + self.particles_velocity
-        self.particles_position = np.clip(next_particles_position, self.position_bound_min, self.position_bound_max)
+        self.particles_position = np.clip(next_particles_position, self.position_bounds_min, self.position_bounds_max)
 
     def _update_best_fitness(self, problem_type: ProblemType) -> None:
         """
@@ -134,7 +152,7 @@ class PyPSO:
         """
 
         # 计算所有粒子的当前适应度
-        computed_particles_fitness = self.fitness_function(self.particles_position)
+        computed_particles_fitness = self.objective_function(self.particles_position)
 
         # 根据问题类型选择比较操作符和最优个体下标索引函数
         if problem_type is ProblemType.MINIMIZATION:
@@ -177,7 +195,7 @@ class PyPSO:
         self,
         problem_type: ProblemType,
         dynamic_check_convergence: bool = True
-    ) -> tuple[np.ndarray, list[float]]:
+    ) -> list[float]:
         """
         开始执行算法迭代
 
@@ -188,7 +206,6 @@ class PyPSO:
         Returns:
             None
         """
-        best_solutions = []  # 每次迭代后的最优解，全部记录下来用于绘制最优路径
         best_fitness_values = []  # 每次迭代后的最优适应度，全部记录下来用于绘制迭代曲线
 
         for iteration in range(1, self.max_iterations + 1):
@@ -209,11 +226,9 @@ class PyPSO:
             # 更新最优适应度，同样使用向量化更新
             self._update_best_fitness(problem_type)
 
-            # 记录每次迭代的全局最优位置，方便绘制最优路径
-            best_solutions.append(self.global_best_position)
             # 记录每次迭代的全局最优适应度，方便绘制迭代曲线
             best_fitness_values.append(self.global_best_fitness.item())
 
             logger.debug(f"第{iteration}次迭代结束，全局最优适应度：{self.global_best_fitness.item():.6f}")
 
-        return np.array(best_solutions), best_fitness_values
+        return best_fitness_values
