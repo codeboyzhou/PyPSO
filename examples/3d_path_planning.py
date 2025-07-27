@@ -33,7 +33,7 @@ class PathPlanning3D:
         # 初始化每个粒子的最优路径成本
         self.particles_cost: np.ndarray = np.zeros(pso_args.num_particles)
 
-    def plot_map_with_best_path(self) -> None:
+    def plot_map_with_best_path(self, mark_waypoints: bool = True) -> None:
         """
         绘制地形和最优路径
         """
@@ -47,16 +47,23 @@ class PathPlanning3D:
         surface = ax.plot_surface(self.x_grid, self.y_grid, self.z_grid, cmap="viridis", alpha=0.6)
         figure.colorbar(surface, shrink=0.5, aspect=5)
 
-        # 标记起点和终点
-        start_x, start_y, start_z = START_POINT[0], START_POINT[1], START_POINT[2]
-        destination_x, destination_y, destination_z = DESTINATION[0], DESTINATION[1], DESTINATION[2]
-        ax.scatter(start_x, start_y, start_z, c='green', s=100, marker='o', label='Start Point')
-        ax.scatter(destination_x, destination_y, destination_z, c='red', s=100, marker='*', label='Destination')
+        # 标记路径点
+        for i, point in enumerate(self.best_path_points):
+            px, py, pz = point[0], point[1], point[2]
+            # 起点
+            if i == 0:
+                ax.scatter(px, py, pz, c="green", s=100, marker="o", label="Start Point")
+            # 终点
+            elif i == len(self.best_path_points) - 1:
+                ax.scatter(px, py, pz, c="red", s=100, marker="*", label="Destination")
+            # 途经点
+            elif mark_waypoints:
+                ax.scatter(px, py, pz, c="orange", s=100, marker="^", label="Waypoint" if i == 1 else None)
 
         # 绘制路径
         np_best_path_points = np.array(self.best_path_points)
         path_x, path_y, path_z = np_best_path_points[:, 0], np_best_path_points[:, 1], np_best_path_points[:, 2]
-        ax.plot(path_x, path_y, path_z, 'b-', linewidth=5, label='Best Path')
+        ax.plot(path_x, path_y, path_z, "b-", linewidth=5, label="Best Path")
 
         # 设置坐标轴信息，elev参数控制仰角，azim参数控制方位角
         ax.view_init(elev=30, azim=240)
@@ -92,14 +99,14 @@ class PathPlanning3D:
             penalty = 0
             # 碰撞惩罚
             if terrain.is_collision_detected(point, self.x_grid, self.y_grid, self.z_grid):
-                logger.warning(f"粒子 {i} 在点 {point} 处与地形发生碰撞")
+                logger.debug(f"粒子 {i} 在点 {point} 处与地形发生碰撞")
                 penalty += 1000
             # 高度惩罚
-            allowed_max_height = (DESTINATION[2] + 1) / 2
+            allowed_max_height = DESTINATION[2]
             if point[2] > allowed_max_height:
                 # 偏离越远惩罚越重
-                logger.warning(f"粒子 {i} 在点 {point} 处高度 {point[2]} 超过允许最大高度 {allowed_max_height}")
-                penalty += abs(point[2] - allowed_max_height) * 100
+                logger.debug(f"粒子 {i} 在点 {point} 处高度 {point[2]} 超过允许最大高度 {allowed_max_height}")
+                penalty += (point[2] - allowed_max_height) * 100
             # 惩罚项计入路径成本
             self.particles_cost[i] += penalty
 
@@ -122,7 +129,7 @@ if __name__ == "__main__":
         num_dimensions=3,
         max_iterations=100,
         position_bounds_min=(0, 0, 0),
-        position_bounds_max=(100, 100, DESTINATION[2] + 1),
+        position_bounds_max=(100, 100, 2 * DESTINATION[2]),
         velocity_bound_max=1,
         inertia_weight_max=2,
         inertia_weight_min=0.5,
