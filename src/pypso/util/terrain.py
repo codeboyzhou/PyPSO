@@ -32,13 +32,14 @@ def generate_simulated_mountain_peaks(
     # 添加山峰
     for (center_x, center_y, amplitude, width) in peaks:
         z_grid += amplitude * np.exp(-((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2) / (2 * width ** 2))
-        logger.success(f"山峰 ({center_x}, {center_y}, {amplitude}, {width}) 已添加到地形图中，高度：{np.max(z_grid)}")
 
     # 添加一些随机噪声和基础波动，增强山峰的真实性
     z_grid += 0.2 * np.sin(0.5 * np.sqrt(x_grid ** 2 + y_grid ** 2)) + 0.1 * np.random.normal(size=x_grid.shape)
 
     # 使用高斯滤波，保持山峰独立性的同时也保证平滑性
     z_grid = gaussian_filter(z_grid, sigma=3)
+
+    logger.success(f"山峰 {peaks} 已添加到地形图中，最大高度：{np.max(z_grid)}")
 
     return z_grid
 
