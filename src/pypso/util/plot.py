@@ -2,12 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_fitness_curve(fitness_values: list[float]) -> None:
+def plot_fitness_curve(fitness_values: list[float], block: bool = True) -> None:
     """
     绘制适应度函数曲线和对应的对数函数曲线
 
     Args:
         fitness_values (list[float]): 适应度值，浮点数，一维数组
+        block (bool): 是否阻塞显示图形窗口，默认为 True，如果为 False，则不会阻塞
 
     Returns:
         None
@@ -31,4 +32,8 @@ def plot_fitness_curve(fitness_values: list[float]) -> None:
     plt.grid(True)
 
     plt.tight_layout()
-    plt.show()
+    plt.show(block=block)
+
+    # 当前只用作不阻塞单元测试
+    if not block:
+        plt.pause(1)
