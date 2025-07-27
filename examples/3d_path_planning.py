@@ -101,13 +101,12 @@ class PathPlanning3D:
             if terrain.is_collision_detected(point, self.x_grid, self.y_grid, self.z_grid):
                 logger.debug(f"粒子 {i} 在点 {point} 处与地形发生碰撞")
                 penalty += 1000
-            # 高度惩罚
-            allowed_max_height = DESTINATION[2]
-            if point[2] > allowed_max_height:
-                # 偏离越远惩罚越重
-                logger.debug(f"粒子 {i} 在点 {point} 处高度 {point[2]} 超过允许最大高度 {allowed_max_height}")
-                penalty += (point[2] - allowed_max_height) * 100
-            # 惩罚项计入路径成本
+            # 高度惩罚，偏离越远惩罚越重
+            penalty += abs(point[2] - DESTINATION[2]) * 100
+            # 终点靠近奖励，离得越近奖励越多
+            distance_to_destination = np.linalg.norm(point[2] - DESTINATION[2])
+            penalty -= distance_to_destination * 500
+            # 计算路径总成本
             self.particles_cost[i] += penalty
 
         # 选择总成本最小的粒子作为下一个最优路径点
