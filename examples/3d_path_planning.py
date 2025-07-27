@@ -1,9 +1,6 @@
-import sys
-
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
-from scipy.spatial import KDTree
 
 from pypso.core import AlgorithmArguments, PyPSO, ProblemType
 from pypso.util import terrain, plot
@@ -18,8 +15,8 @@ PEAKS = [
 ]
 
 # 定义路径起点和终点坐标
-START_POINT = (0.0, 0.0, 0.1)
-DESTINATION = (80.0, 80.0, 0.1)
+START_POINT = (0.0, 0.0, 0.0)
+DESTINATION = (80.0, 80.0, 1.0)
 
 
 class PathPlanning3D:
@@ -33,8 +30,8 @@ class PathPlanning3D:
 
         # 初始化最优路径点
         self.best_path_points: list[tuple[float, float, float]] = [START_POINT]
-        # 初始化最优路径成本
-        self.best_path_costs: np.ndarray = np.zeros((pso_args.num_particles, pso_args.num_dimensions))
+        # 初始化每个粒子的最优路径成本
+        self.particles_cost: np.ndarray = np.zeros(pso_args.num_particles)
 
     def plot_map_with_best_path(self) -> None:
         """
@@ -85,46 +82,34 @@ class PathPlanning3D:
         # PSO算法每迭代一次，就会产生一个当前最优路径点，在初始化时，它是起点，往后每次取最后一个最优路径点
         current_best_point = self.best_path_points[-1]
 
-        # 基于 KNN 算法查找距离当前最优路径点最近的 K 个邻接点
-        num_expected_neighbors = positions.shape[0]  # 期望找到的邻接点数量
-        distances, indices = KDTree(positions).query(current_best_point, k=num_expected_neighbors)
-        neighbors = positions[indices[1:]]  # 邻接点结果包含当前点自身，需排除
-        logger.debug(f"当前最优路径点：{current_best_point}，找到的邻接点：{neighbors}")
+        # 计算每个粒子到当前点的距离，作为先天性成本
+        distances = np.linalg.norm(positions - current_best_point, axis=1)
+        self.particles_cost += distances
 
-        # 挑选目标邻接点
-        expected_neighbors = []
-        for neighbor in neighbors:
-            is_expected_neighbor = True
-
+        # 惩罚机制
+        for i, p in enumerate(positions):
+            point = np.array(p)
+            penalty = 0
             # 碰撞惩罚
-            if terrain.is_collision_detected(neighbor, self.x_grid, self.y_grid, self.z_grid):
-                logger.debug(f"邻接点 {neighbor} 会与地形发生碰撞，跳过并驱逐该点")
-                self.best_path_costs += 5
-                is_expected_neighbor = False
-
+            if terrain.is_collision_detected(point, self.x_grid, self.y_grid, self.z_grid):
+                logger.warning(f"粒子 {i} 在点 {point} 处与地形发生碰撞")
+                penalty += 1000
             # 高度惩罚
-            allowed_max_height = np.max(self.z_grid)
-            if neighbor[2] > allowed_max_height:
-                logger.debug(f"邻接点 {neighbor} 高度超过限定阈值 {allowed_max_height}，跳过并驱逐该点")
-                self.best_path_costs += 1
-                is_expected_neighbor = False
+            allowed_max_height = (DESTINATION[2] + 1) / 2
+            if point[2] > allowed_max_height:
+                # 偏离越远惩罚越重
+                logger.warning(f"粒子 {i} 在点 {point} 处高度 {point[2]} 超过允许最大高度 {allowed_max_height}")
+                penalty += abs(point[2] - allowed_max_height) * 100
+            # 惩罚项计入路径成本
+            self.particles_cost[i] += penalty
 
-            if is_expected_neighbor:
-                expected_neighbors.append(neighbor)
+        # 选择总成本最小的粒子作为下一个最优路径点
+        best_point_index = np.argmin(self.particles_cost)
+        best_point = positions[best_point_index]
+        best_x, best_y, best_z = best_point[0], best_point[1], best_point[2]
+        self.best_path_points.append((best_x.item(), best_y.item(), best_z.item()))
 
-        # 如果没有找到符合预期的邻接点，则返回一个无穷大值，表示当前路径点不可行
-        if len(expected_neighbors) == 0:
-            logger.warning("本次迭代没有找到符合预期的邻接点")
-            self.best_path_costs += np.inf
-            return np.sum(self.best_path_costs, axis=1)
-
-        # 这里还是使用 KNN 算法查找目标邻接点中距离终点最近的点，k=1 表示只查找最近的那个点，把这个点作为当前最优路径点的下一个点
-        distance_to_destination, i = KDTree(expected_neighbors).query(DESTINATION, k=1)
-        mvp_x, mvp_y, mvp_z = expected_neighbors[i][0], expected_neighbors[i][1], expected_neighbors[i][2]
-        self.best_path_points.append((mvp_x.item(), mvp_y.item(), mvp_z.item()))
-        logger.debug(f"下一个最优路径点：({mvp_x}, {mvp_y}, {mvp_z})")
-
-        return np.sum(self.best_path_costs, axis=1)
+        return self.particles_cost
 
 
 if __name__ == "__main__":
@@ -137,7 +122,7 @@ if __name__ == "__main__":
         num_dimensions=3,
         max_iterations=100,
         position_bounds_min=(0, 0, 0),
-        position_bounds_max=(100, 100, 2),
+        position_bounds_max=(100, 100, DESTINATION[2] + 1),
         velocity_bound_max=1,
         inertia_weight_max=2,
         inertia_weight_min=0.5,
