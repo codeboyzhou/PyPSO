@@ -59,6 +59,7 @@ class PathPlanning3D:
             # 途经点
             elif mark_waypoints:
                 ax.scatter(px, py, pz, c="orange", s=100, marker="^", label="Waypoint" if i == 1 else None)
+                ax.text(px + 0.2, py + 0.2, z=pz + 0.2, color="red", s=f"P{i}", fontsize=10)
 
         # 绘制路径
         np_best_path_points = np.array(self.best_path_points)
