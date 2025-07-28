@@ -1,9 +1,11 @@
+from functools import partial
+
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
 
 from pypso.core import AlgorithmArguments, PyPSO, ProblemType
-from pypso.util import terrain, plot
+from pypso.util import terrain, plot, ndarrays
 
 # 定义模拟山峰的参数
 PEAKS = [
@@ -30,8 +32,6 @@ class PathPlanning3D:
 
         # 初始化最优路径点
         self.best_path_points: list[tuple[float, float, float]] = [START_POINT]
-        # 初始化每个粒子的最优路径成本
-        self.particles_cost: np.ndarray = np.zeros(pso_args.num_particles)
 
     def plot_map_with_best_path(self, mark_waypoints: bool = True) -> None:
         """
@@ -87,36 +87,51 @@ class PathPlanning3D:
         Returns:
             路径成本大小，数据格式为 np.ndarray，形状为 (n, 1)
         """
-        # PSO算法每迭代一次，就会产生一个当前最优路径点，在初始化时，它是起点，往后每次取最后一个最优路径点
-        current_best_point = self.best_path_points[-1]
+        # 初始化粒子路径成本
+        particles_cost = np.zeros(positions.shape[0])
 
-        # 计算每个粒子到当前点的距离，作为先天性成本
-        distances = np.linalg.norm(positions - current_best_point, axis=1)
-        self.particles_cost += distances
+        # 定义惩罚权重
+        collision_weight = 1.0
+        height_diff_weight = 0.2
+        distances_to_current_weight = 0.3
+        distances_to_destination_weight = 0.3
+        smoothness_weight = 1.0
 
-        # 惩罚机制
-        for i, p in enumerate(positions):
-            point = np.array(p)
-            penalty = 0
-            # 碰撞惩罚
-            if terrain.is_collision_detected(point, self.x_grid, self.y_grid, self.z_grid):
-                logger.debug(f"粒子 {i} 在点 {point} 处与地形发生碰撞")
-                penalty += 1000
-            # 高度惩罚，偏离越远惩罚越重
-            penalty += abs(point[2] - DESTINATION[2]) * 100
-            # 终点靠近奖励，离得越近奖励越多
-            distance_to_destination = np.linalg.norm(point[2] - DESTINATION[2])
-            penalty -= distance_to_destination * 500
-            # 计算路径总成本
-            self.particles_cost[i] += penalty
+        # 碰撞惩罚，已做归一化处理
+        condition = partial(terrain.is_collision_detected, x_grid=self.x_grid, y_grid=self.y_grid, z_grid=self.z_grid)
+        particles_cost += ndarrays.binarize(positions, condition) * collision_weight
+
+        # 高度偏离惩罚，已做归一化处理
+        height_diffs = np.abs(positions[:, 2] - DESTINATION[2])
+        particles_cost += ndarrays.normalize(height_diffs) * height_diff_weight
+
+        # 距离当前点过远惩罚，已做归一化处理
+        distances_to_current = np.linalg.norm(positions - self.best_path_points[-1], axis=1)
+        particles_cost += ndarrays.normalize(distances_to_current) * distances_to_current_weight
+
+        # 距离终点过远惩罚，已做归一化处理
+        distances_to_destination = np.linalg.norm(positions - DESTINATION, axis=1)
+        particles_cost += ndarrays.normalize(distances_to_destination) * distances_to_destination_weight
+
+        # 路径平滑性惩罚，已做归一化处理
+        if len(self.best_path_points) > 1:
+            # 计算相邻路径点的方向向量余弦值
+            current_point = np.array(self.best_path_points[-1])
+            previous_point = np.array(self.best_path_points[-2])
+            best_path_directions = positions - current_point
+            previous_direction = current_point - previous_point
+            cos_angles = ndarrays.cos_angles(best_path_directions, previous_direction)
+            # 余弦值越接近1，说明余弦夹角越小，路径越平滑，因此惩罚值为1减去余弦值
+            smoothness = 1 - cos_angles
+            particles_cost += ndarrays.normalize(smoothness) * smoothness_weight
 
         # 选择总成本最小的粒子作为下一个最优路径点
-        best_point_index = np.argmin(self.particles_cost)
+        best_point_index = np.argmin(particles_cost)
         best_point = positions[best_point_index]
         best_x, best_y, best_z = best_point[0], best_point[1], best_point[2]
         self.best_path_points.append((best_x.item(), best_y.item(), best_z.item()))
 
-        return self.particles_cost
+        return particles_cost
 
 
 if __name__ == "__main__":
