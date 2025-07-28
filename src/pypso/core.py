@@ -198,17 +198,12 @@ class PyPSO:
         inertia_weight_range_value = self.inertia_weight_max - self.inertia_weight_min
         self.inertia_weight = self.inertia_weight_max - inertia_weight_range_value * (iteration / max_iterations)
 
-    def start_iterating(
-        self,
-        problem_type: ProblemType,
-        dynamic_check_convergence: bool = True
-    ) -> list[float]:
+    def start_iterating(self, problem_type: ProblemType) -> list[float]:
         """
         开始执行算法迭代
 
         Args:
             problem_type (ProblemType): 待优化的问题类型，可以是最小化问题，也可以是最大化问题
-            dynamic_check_convergence (bool): 是否动态检查适应度收敛，默认为True
 
         Returns:
             None
@@ -221,8 +216,8 @@ class PyPSO:
             logger.debug(f"第{iteration}次迭代开始")
 
             # 检查适应度值是否提前收敛
-            if dynamic_check_convergence and checker.is_converged(best_fitness_values):
-                logger.debug(f"适应度已收敛，可以提前结束迭代，当前全局最优适应度：{self.global_best_fitness.item():.6f}")
+            if checker.is_converged(best_fitness_values):
+                logger.success(f"适应度值在第 {iteration} 次迭代时已收敛，提前结束迭代")
                 break
 
             # 动态更新惯性权重
@@ -240,4 +235,5 @@ class PyPSO:
 
             logger.debug(f"第{iteration}次迭代结束，全局最优适应度：{self.global_best_fitness.item():.6f}")
 
+        logger.success(f"PSO算法迭代完成，最终全局最优适应度为：{self.global_best_fitness.item():.6f}")
         return best_fitness_values

@@ -39,7 +39,7 @@ class PathPlanning3D:
         """
         # 在最优路径点中追加终点
         self.best_path_points.append(DESTINATION)
-        logger.success(f"PSO算法迭代完成，共找到 {len(self.best_path_points) - 2} 个最优路径点（不包含起点和终点）")
+        logger.success(f"共找到 {len(self.best_path_points) - 2} 个最优路径点（不包含起点和终点）")
 
         # 绘制地形
         figure = plt.figure(figsize=(10, 8))
@@ -147,10 +147,7 @@ if __name__ == "__main__":
     )
 
     # 执行算法迭代
-    best_fitness_values = pso_optimizer.start_iterating(
-        problem_type=ProblemType.MINIMIZATION,
-        dynamic_check_convergence=False
-    )
+    best_fitness_values = pso_optimizer.start_iterating(ProblemType.MINIMIZATION)
 
     # 绘制适应度曲线
     plot.plot_fitness_curve(fitness_values=best_fitness_values, sup_title="3D Path Planning")
