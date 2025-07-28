@@ -45,3 +45,22 @@ def cos_angles(vector1: np.ndarray, vector2: np.ndarray) -> np.ndarray:
         np.ndarray: 每对向量之间的余弦夹角，形状为 (n, n)
     """
     return np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2) + 1e-6)  # 防止除0
+
+
+def point_to_line_distance(points: np.ndarray, line_endpoint_a: np.ndarray, line_endpoint_b: np.ndarray) -> np.ndarray:
+    """
+    计算空间中多个点到直线ab的垂直距离
+
+    Args:
+        points (np.ndarray): 形状为 (n, 3) 的点集
+        line_endpoint_a (np.ndarray): 直线起点，形状为 (3,)
+        line_endpoint_b (np.ndarray): 直线终点，形状为 (3,)
+
+    Returns:
+        np.ndarray: 每个点到直线的距离，形状为 (n,)
+    """
+    ab = line_endpoint_b - line_endpoint_a
+    ap = points - line_endpoint_a
+    cross = np.cross(ap, ab)
+    distance = np.linalg.norm(cross, axis=1) / np.linalg.norm(ab)
+    return distance
