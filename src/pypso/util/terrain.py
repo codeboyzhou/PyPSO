@@ -62,18 +62,33 @@ def is_collision_detected(
     Returns:
         bool: 如果发生碰撞则返回True，否则返回False
     """
-    point_x, point_y, point_z = point[0], point[1], point[2]
+    x, y, z = point[0], point[1], point[2]
 
     # 边界值处理，高度为0，无需考虑碰撞
-    if point_z == 0:
+    if z == 0:
         return False
 
-    # 根据点的坐标值获取点在网格中的下标
-    x_index = int((point_x - np.min(x_grid)) // x_grid.shape[0])
-    y_index = int((point_y - np.min(y_grid)) // y_grid.shape[1])
+    # 获取网格的实际坐标值范围
+    x_vals = np.unique(x_grid)
+    y_vals = np.unique(y_grid)
+    x_min, x_max = x_vals.min(), x_vals.max()
+    y_min, y_max = y_vals.min(), y_vals.max()
 
-    # 如果点的高度无限接近地形高度，则认为发生碰撞
-    terrain_z = z_grid[x_index, y_index]
-    result = point_z < terrain_z
+    # 超出地形范围视为碰撞
+    if x < x_min or x > x_max or y < y_min or y > y_max:
+        return True
+
+    # 计算实际坐标步长并获取网格索引
+    x_step = x_vals[1] - x_vals[0]
+    y_step = y_vals[1] - y_vals[0]
+    x_index = np.clip(int((x - x_min) / x_step), 0, len(x_vals) - 1)
+    y_index = np.clip(int((y - y_min) / y_step), 0, len(y_vals) - 1)
+
+    # 获取地形高度并增加安全余量（10%地形高度）
+    terrain_z = z_grid[y_index, x_index]  # 注意meshgrid的索引顺序是(y, x)
+    safety_margin = 0.1 * terrain_z  # 增加10%的安全高度避免贴地穿模
+
+    # 点高度低于地形高度+安全余量则判定为碰撞
+    result = z < (terrain_z + safety_margin)
 
     return result.item()

@@ -14,25 +14,13 @@ def plot_fitness_curve(fitness_values: list[float], sup_title: str = None, block
     Returns:
         None
     """
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(10, 8))
     plt.suptitle(sup_title)
-
-    plt.subplot(121)
     plt.title("Fitness Function Curve")
     plt.xlabel("Number of Iterations")
     plt.ylabel("Fitness Value")
     plt.plot(fitness_values, "b-", linewidth=2)
     plt.grid(True)
-
-    plt.subplot(122)
-    plt.title("Fitness Function Curve (log)")
-    plt.xlabel("Number of Iterations")
-    plt.ylabel("log(Fitness Value)")
-    # 处理可能为0或负数的适应度值，避免做对数计算出现除0错误
-    valid_fitness_values = np.maximum(fitness_values, 1e-10)
-    plt.plot(np.log(valid_fitness_values), "r-", linewidth=2)
-    plt.grid(True)
-
     plt.tight_layout()
 
     if block:

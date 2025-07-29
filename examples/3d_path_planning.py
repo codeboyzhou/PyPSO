@@ -1,5 +1,3 @@
-from functools import partial
-
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
@@ -41,8 +39,8 @@ class PathPlanning3D:
         # 在最优路径点中追加终点
         self.best_path_points.append(DESTINATION)
         # 对路径点按坐标进行排序
-        self.best_path_points.sort(key=lambda sorting_point: (sorting_point[0], sorting_point[1]))
-        logger.success(f"共找到 {len(self.best_path_points) - 2} 个最优路径点（不包含起点和终点）")
+        self.best_path_points.sort(key=lambda sorting_point: sorting_point[0] + sorting_point[1] + sorting_point[2])
+        logger.success(f"共找到 {len(self.best_path_points)} 个最优路径点：{self.best_path_points}")
 
         # 绘制地形
         figure = plt.figure(figsize=(10, 8))
@@ -102,16 +100,11 @@ class PathPlanning3D:
 
         # 定义惩罚权重
         iteration = len(self.best_path_points)
-        collision_weight = 1.0 / (1 + 0.1 * iteration)
         height_diff_weight = 0.5 + 0.1 * iteration
         smoothness_weight = 1.0 + 0.1 * iteration
         distances_to_line_weight = 10 * np.exp(0.01 * iteration)
         distances_to_current_weight = 0.5 * np.exp(-0.01 * iteration)
         distances_to_destination_weight = 0.05 * iteration
-
-        # 碰撞惩罚，已做归一化处理
-        condition = partial(terrain.is_collision_detected, x_grid=self.x_grid, y_grid=self.y_grid, z_grid=self.z_grid)
-        particles_cost += ndarrays.binarize(positions, condition) * collision_weight
 
         # 高度偏离惩罚，已做归一化处理
         height_diffs = np.abs(positions[:, 2] - DESTINATION[2])
@@ -141,9 +134,32 @@ class PathPlanning3D:
         distances_to_destination = np.linalg.norm(positions - DESTINATION, axis=1)
         particles_cost += ndarrays.normalize(distances_to_destination) * distances_to_destination_weight
 
-        # 选择总成本最小的粒子作为下一个最优路径点
+        # 选择成本最小的点
         best_point_index = np.argmin(particles_cost)
         best_point = positions[best_point_index]
+
+        # 碰撞点纠偏
+        while terrain.is_collision_detected(np.array(best_point), self.x_grid, self.y_grid, self.z_grid):
+            logger.warning(f"当前点 {best_point} 会与地形发生碰撞，尝试向 -x 方向纠偏")
+            best_point[0] -= 1
+            if best_point[0] < 0:
+                best_point[0] = 0
+        while terrain.is_collision_detected(np.array(best_point), self.x_grid, self.y_grid, self.z_grid):
+            logger.warning(f"当前点 {best_point} 会与地形发生碰撞，尝试向 +x 方向纠偏")
+            best_point[0] += 1
+            if best_point[0] > 100:
+                best_point[0] = 100
+        while terrain.is_collision_detected(np.array(best_point), self.x_grid, self.y_grid, self.z_grid):
+            logger.warning(f"当前点 {best_point} 会与地形发生碰撞，尝试向 -y 方向纠偏")
+            best_point[1] -= 1
+            if best_point[1] < 0:
+                best_point[1] = 0
+        while terrain.is_collision_detected(np.array(best_point), self.x_grid, self.y_grid, self.z_grid):
+            logger.warning(f"当前点 {best_point} 会与地形发生碰撞，尝试向 +y 方向纠偏")
+            best_point[1] += 1
+            if best_point[1] > 100:
+                best_point[1] = 100
+
         best_x, best_y, best_z = best_point[0], best_point[1], best_point[2]
         self.best_path_points.append((best_x.item(), best_y.item(), best_z.item()))
 
@@ -181,7 +197,7 @@ if __name__ == "__main__":
     best_fitness_values = pso_optimizer.start_iterating(ProblemType.MINIMIZATION)
 
     # 绘制适应度曲线
-    plot.plot_fitness_curve(fitness_values=best_fitness_values, sup_title="3D Path Planning", block=False)
+    plot.plot_fitness_curve(fitness_values=best_fitness_values, block=False)
 
     # 绘制最优路径
     path_planning_3d.plot_map_with_best_path()
