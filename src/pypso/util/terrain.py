@@ -53,6 +53,12 @@ def is_collision_detected(
     """
     检测空间中的某个点 (x, y, z) 是否与高度场发生了碰撞
 
+    Args:
+        point (np.ndarray): 待检测的点的坐标 (x, y, z)
+        x_grid (np.ndarray): X平面网格
+        y_grid (np.ndarray): Y平面网格
+        z_grid (np.ndarray): Z平面网格
+
     Returns:
         bool: 如果发生碰撞则返回True，否则返回False
     """
@@ -68,6 +74,6 @@ def is_collision_detected(
 
     # 如果点的高度无限接近地形高度，则认为发生碰撞
     terrain_z = z_grid[x_index, y_index]
-    result = (point_z - terrain_z) < 1e-6
+    result = point_z < terrain_z
 
     return result.item()
