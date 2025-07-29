@@ -40,7 +40,7 @@ class PathPlanning3D:
         # 在最优路径点中追加终点
         self.best_path_points.append(DESTINATION)
         # 对路径点按坐标进行排序
-        self.best_path_points.sort(key=lambda p: (p[0], p[1], p[2]))
+        self.best_path_points.sort(key=lambda sorting_point: (sorting_point[0], sorting_point[1]))
         logger.success(f"共找到 {len(self.best_path_points) - 2} 个最优路径点（不包含起点和终点）")
 
         # 绘制地形
@@ -93,12 +93,13 @@ class PathPlanning3D:
         particles_cost = np.zeros(positions.shape[0])
 
         # 定义惩罚权重
-        collision_weight = 1.0
-        height_diff_weight = 0.5
-        smoothness_weight = 1.0
-        distances_to_line_weight = 10
-        distances_to_current_weight = 0.5
-        distances_to_destination_weight = 0
+        iteration = len(self.best_path_points)
+        collision_weight = 1.0 / (1 + 0.1 * iteration)
+        height_diff_weight = 0.5 + 0.1 * iteration
+        smoothness_weight = 1.0 + 0.1 * iteration
+        distances_to_line_weight = 10 * np.exp(0.01 * iteration)
+        distances_to_current_weight = 0.5 * np.exp(-0.01 * iteration)
+        distances_to_destination_weight = 0.05 * iteration
 
         # 碰撞惩罚，已做归一化处理
         condition = partial(terrain.is_collision_detected, x_grid=self.x_grid, y_grid=self.y_grid, z_grid=self.z_grid)
