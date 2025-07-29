@@ -3,6 +3,7 @@ from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
 from loguru import logger
+from scipy.interpolate import make_interp_spline
 
 from pypso.core import AlgorithmArguments, PyPSO, ProblemType
 from pypso.util import terrain, plot, ndarrays
@@ -63,10 +64,17 @@ class PathPlanning3D:
                 ax.scatter(px, py, pz, c="orange", s=100, marker="^", label="Waypoint" if i == 1 else None)
                 ax.text(px + 0.2, py + 0.2, z=pz + 0.2, color="red", s=f"P{i}", fontsize=10)
 
-        # 绘制路径
+        # 使用三阶B样条曲线绘制平滑路径
         np_best_path_points = np.array(self.best_path_points)
-        path_x, path_y, path_z = np_best_path_points[:, 0], np_best_path_points[:, 1], np_best_path_points[:, 2]
-        ax.plot(path_x, path_y, path_z, "b-", linewidth=5, label="Best Path")
+        x, y, z = np_best_path_points[:, 0], np_best_path_points[:, 1], np_best_path_points[:, 2]
+        # 计算路径点的参数化变量
+        t_for_spline = np.arange(len(x))
+        # 创建三阶B样条曲线（k=3表示三阶）
+        spline = make_interp_spline(t_for_spline, np.column_stack((x, y, z)), k=3)
+        # 生成平滑路径点，使用参数化变量进行插值，可以根据需要调整点的数量
+        smooth_path = spline(np.linspace(t_for_spline.min(), t_for_spline.max(), 100))
+        x, y, z = smooth_path[:, 0], smooth_path[:, 1], smooth_path[:, 2]
+        ax.plot(x, y, z, "b-", linewidth=5, label="Best Path")
 
         # 设置坐标轴信息，elev参数控制仰角，azim参数控制方位角
         ax.view_init(elev=30, azim=240)
